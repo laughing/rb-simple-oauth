@@ -2,7 +2,6 @@ require 'rubygems'
 require 'haml'
 require 'json'
 require 'sinatra'
-
 require 'simple-oauth'
 
 helpers do
