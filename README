@@ -1,2 +1,7 @@
-The simple OAuth sample code for Ruby.
-http://d.hatena.ne.jp/shibason/20090809/1249764381
+I refer to http://d.hatena.ne.jp/shibason/20090809/1249764381
+
+*add
+-request_token
+--get pin code address
+-access_token
+--get access token
