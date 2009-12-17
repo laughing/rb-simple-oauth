@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-require 'digest/md5'
 require 'uri'
+require 'digest/md5'
 
 require 'rubygems'
 require 'hmac-sha1'
-require 'net/http'
-#require 'appengine-apis/urlfetch'
-#Net::HTTP = AppEngine::URLFetch::HTTP
+require 'appengine-apis/urlfetch'
+#Net::HTTP = AppEngine::URLFetch::HTTP # おまじない？
 
 class SimpleOAuth
   def initialize(consumer_key, consumer_secret,
@@ -16,7 +15,6 @@ class SimpleOAuth
     @consumer_secret = consumer_secret
     @token = token
     @token_secret = token_secret
-    @callback = callback
     @verifier = verifier
     # This class supports only 'HMAC-SHA1' as signature method at present.
     @signature_method = 'HMAC-SHA1'
@@ -41,12 +39,11 @@ class SimpleOAuth
   def delete(url, headers = {})
     request(:DELETE, url, nil, headers)
   end
- 
-  # 設定で browser にしとかないと callback は効かない
+  
   def request_token(url, callback = '', headers = {})
     @callback = callback
     response = get(url, headers)
-    raise RequestFailed, "Request failed: #{response.code}" unless response.code.to_i == 200
+    raise "Request failed: #{response.code}" unless response.code.to_i == 200
     @token, @token_secret = response.body.split('&').map { |elm| elm.split('=')[1] }
     url = URI.parse(url)
     {
@@ -59,7 +56,7 @@ class SimpleOAuth
   def access_token(url, verifier = '', headers = {})
     @verifier = verifier
     response = get(url, headers)
-    raise RequestFailed, "Request failed: #{response.code}" unless response.code.to_i == 200
+    raise "Request failed: #{response.code}" unless response.code.to_i == 200
     @token, @token_secret = response.body.split('&').map { |elm| elm.split('=')[1] }
     {
       :token => @token,
@@ -126,7 +123,7 @@ private
       :oauth_version => OAUTH_VERSION,
       :oauth_callback => @callback,
       :oauth_verifier => @verifier
-     }
+    }
   end
 
   def timestamp
