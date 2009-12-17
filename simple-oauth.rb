@@ -1,13 +1,23 @@
+# -*- coding: utf-8 -*-
+require 'digest/md5'
 require 'uri'
+
+require 'rubygems'
+require 'hmac-sha1'
 require 'net/http'
-require 'openssl'
+#require 'appengine-apis/urlfetch'
+#Net::HTTP = AppEngine::URLFetch::HTTP
 
 class SimpleOAuth
-  def initialize(consumer_key, consumer_secret, token, token_secret)
+  def initialize(consumer_key, consumer_secret,
+                 token = '', token_secret = '',
+                 callback = '', verifier = '')
     @consumer_key = consumer_key
     @consumer_secret = consumer_secret
     @token = token
     @token_secret = token_secret
+    @callback = callback
+    @verifier = verifier
     # This class supports only 'HMAC-SHA1' as signature method at present.
     @signature_method = 'HMAC-SHA1'
   end
@@ -30,6 +40,31 @@ class SimpleOAuth
 
   def delete(url, headers = {})
     request(:DELETE, url, nil, headers)
+  end
+ 
+  # 設定で browser にしとかないと callback は効かない
+  def request_token(url, callback = '', headers = {})
+    @callback = callback
+    response = get(url, headers)
+    raise RequestFailed, "Request failed: #{response.code}" unless response.code.to_i == 200
+    @token, @token_secret = response.body.split('&').map { |elm| elm.split('=')[1] }
+    url = URI.parse(url)
+    {
+      :token => @token,
+      :secret => @token_secret,
+      :authorize => url.scheme + '://' + url.host + "/oauth/authorize?oauth_token=#{@token}"
+    }
+  end
+
+  def access_token(url, verifier = '', headers = {})
+    @verifier = verifier
+    response = get(url, headers)
+    raise RequestFailed, "Request failed: #{response.code}" unless response.code.to_i == 200
+    @token, @token_secret = response.body.split('&').map { |elm| elm.split('=')[1] }
+    {
+      :token => @token,
+      :secret => @token_secret
+    }
   end
 
 private
@@ -88,8 +123,10 @@ private
       :oauth_signature_method => @signature_method,
       :oauth_timestamp => timestamp,
       :oauth_nonce => nonce,
-      :oauth_version => OAUTH_VERSION
-    }
+      :oauth_version => OAUTH_VERSION,
+      :oauth_callback => @callback,
+      :oauth_verifier => @verifier
+     }
   end
 
   def timestamp
@@ -97,7 +134,7 @@ private
   end
 
   def nonce
-    OpenSSL::Digest::Digest.hexdigest('MD5', "#{Time.now.to_f}#{rand}")
+    Digest::MD5.hexdigest("#{Time.now.to_f}#{rand}")
   end
 
   def signature(*args)
@@ -109,7 +146,7 @@ private
   end
 
   def digest_hmac_sha1(value)
-    OpenSSL::HMAC.digest(OpenSSL::Digest::SHA1.new, secret, value)
+    HMAC::SHA1.digest(secret, value)
   end
 
   def secret
